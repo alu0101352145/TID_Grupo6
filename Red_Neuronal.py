@@ -13,7 +13,6 @@
 
 # 1. Carga de librerías
 
-from curses.ascii import DEL
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import datasets
@@ -32,47 +31,52 @@ DELIMITADOR = '\n###############################################################
 
 # 2. Carga de datos
 print('Cargando los datos...')
-seed_stats = np.loadtxt("seeds_dataset_source.txt", dtype=float, delimiter='\t')
-digits_test = np.loadtxt("seeds_dataset_test.txt", dtype=float, delimiter='\t')
-# print(seed_stats)
+seed_stats = np.loadtxt("seeds_dataset.txt", dtype=float, delimiter='\t')
+print(seed_stats)
 (n_samples, n_features) = seed_stats.shape
-# print(f'Rows: {n_samples}')
-# print(f'Columns: {n_features}')
+print(f'Rows: {n_samples}')
+print(f'Columns: {n_features}')
 
 print(DELIMITADOR)
 
 # 3. Preprocesado de datos
 print('Preprocesando los datos...')
 # train_size: porcentaje del conjunto de datos utilizado para el entrenamiento
+# other_size: porcentaje del conjunto de datos utilizado para la validación y tests
+# valid_size: porcentaje del conjunto "other" utilizado para la validación
+# test_size: porcentaje del conjunto "other" utilizado para los tests
 
 train_size = 0.5
-test_size = 0.3
+other_size = 0.5
+valid_size = 0.5
+test_size = 0.5
 
 type_column = seed_stats[:, n_features - 1]
 seed_stats_normalized = preprocessing.normalize(seed_stats)
 seed_stats_normalized[:, n_features - 1] = type_column
-# print(seed_stats_normalized)
-
-input_test = preprocessing.normalize(digits_test)
-input_test = input_test[:, :-1]
-target_test = digits_test[:, -1]
 
 patterns_input = seed_stats_normalized[:, :n_features-1]
 patterns_target = seed_stats_normalized[:, -1]
 
-input_train, input_valid, target_train, target_valid = train_test_split(
-    patterns_input, patterns_target, train_size=train_size, test_size=test_size,
-    random_state=0, shuffle=True)
+# como debemos separar el conjunto de datos total en datos de entrenamiento, validación
+# y tests, separamos primero entre los que son de entrenamiento y el resto
+input_train, input_others, target_train, target_others = train_test_split(
+    patterns_input, patterns_target, train_size = train_size, test_size = other_size,
+    random_state = 0, shuffle = True)
+
+input_valid, input_test, target_valid, target_test = train_test_split(
+    input_others, target_others, train_size = valid_size, test_size = test_size,
+    random_state = 0, shuffle = True)
 
 # 4. Resultados iniciales Perceptrón Simple
 
-max_iter = 30
+max_iter = 60
 print("Learning a Perceptron with %d maximum number of iterations and ..." % max_iter)
 perceptron = Perceptron(max_iter = max_iter, shuffle = False, random_state = 0, verbose = True)
 perceptron.fit(input_train, target_train)
 
 # Results
-print("Printing Perceptron results")
+print("\n~~~ Printing Perceptron results ~~~\n")
 predict_train = perceptron.predict(input_train)
 predict_valid = perceptron.predict(input_valid)
 print("Train accuracy: %.3f%%" % (accuracy_score(target_train, predict_train) * 100))
@@ -114,13 +118,13 @@ def MLP_train_valid(mlp, input_train, target_train, input_valid, target_valid, m
         plt.show()
 
 # Multilayer Percetron wiht n_hidden hidden neurons
-n_hidden = 60
+n_hidden = 80
 max_iter = 300
-learning_rate_init = 0.001
+learning_rate_init = 0.01
 valid_cycles = 5
 early_stopping = True
 
-print("Learning a MLP with %d hidden neurons, %d maximum number of iterations and %.8f learning rate ..." % (n_hidden, max_iter, learning_rate_init))
+print("\n~~~ Learning a MLP with %d hidden neurons, %d maximum number of iterations and %.8f learning rate ... ~~~\n" % (n_hidden, max_iter, learning_rate_init))
 
 mlp = MLPClassifier(hidden_layer_sizes = (n_hidden,), learning_rate_init = learning_rate_init, shuffle = False, random_state = 0, verbose = False)
 
@@ -128,7 +132,7 @@ MLP_train_valid(mlp, input_train, target_train, input_valid, target_valid, max_i
 
 # Resultados
 
-print("Printing initial results")
+print("\n~~~ Printing initial results~~~\n")
 
 predict_train = mlp.predict(input_train)
 predict_valid = mlp.predict(input_valid)
@@ -136,7 +140,7 @@ predict_valid = mlp.predict(input_valid)
 print("Train accuracy: %.3f%%" % (accuracy_score(target_train, predict_train) * 100))
 print("Valid accuracy: %.3f%%" % (accuracy_score(target_valid, predict_valid) * 100))
 
-print("Train confusion matrix:")
+print("\nTrain confusion matrix:")
 print(confusion_matrix(target_train, predict_train))
 print("Valid confusion matrix:")
 print(confusion_matrix(target_valid, predict_valid))
@@ -148,9 +152,9 @@ print(classification_report(target_valid, predict_valid))
 
 # 6. Optimización ratio de aprendizaje
 
-print("Learning rate optimization")
+print("\n~~~ Optimización del ratio de aprendizaje ~~~\n")
 
-tests_learning_rate_init = [0.001, 0.005, 0.01, 0.05, 0.1]
+tests_learning_rate_init = [0.001, 0.005, 0.01, 0.05, 0.1, 0.15]
 activation = 'relu'
 random_state = 0
 
@@ -176,10 +180,10 @@ plt.show()
 
 # 7. Optimización arquitectura
 
-print("Architecture optimization")
+print("\n~~~ Optimización de la arquitectura ~~~\n")
 
 # Test MLP with differents number of hidden units and several repetitions
-tests_n_hidden = [10, 30, 50, 70, 90, 110, 130, 150, 170, 190]
+tests_n_hidden = [10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250]
 n_reps = 10
 # n_reps = 20
 activation = 'relu'
@@ -217,19 +221,19 @@ print("Best MLP valid accuracy: %.8f%%" % (best_acc * 100))
 print("Best MLP: ", best_mlp)
 
 # Show results
+
 width = 4
 plt.bar(np.array(tests_n_hidden) - width, 100 *(1- np.array(accs_train)), color='g', width=width, label='Train error')
 plt.bar(np.array(tests_n_hidden), 100 *(1- np.array(accs_valid)), width=width, label='Min valid error')
 plt.xlabel('number of hidden units')
 plt.ylabel('error (%)')
 plt.xticks(np.array(tests_n_hidden), tests_n_hidden)
-plt.legend(loc='upper right')
+plt.legend(loc = 'upper right')
 plt.show()
 
+# 8. Resultados finales del mejor MLP
 
-# 8. Resultados finales mejor MLP
-
-print("Printing final results")
+print("\n~~~ Imprimimos los resultados finales del mejor MLP ~~~\n")
 
 predict_train = best_mlp.predict(input_train)
 predict_valid = best_mlp.predict(input_valid)
@@ -254,23 +258,25 @@ print("Test classification report:")
 print(classification_report(target_test, predict_test))
 
 # ROC curves of test set
-# mlp_probs = mlp.predict_proba(input_test)
-# classes  = np.unique(target_train)
-# mlp_auc = []
-# mlp_fpr = []
-# mlp_tpr = []
-# for cla in classes:
-#     mlp_auc.append(roc_auc_score(target_test==cla, mlp_probs[:,cla]))
-#     fpr, tpr, _ = roc_curve(target_test==cla, mlp_probs[:,cla])
-#     mlp_fpr.append(fpr)
-#     mlp_tpr.append(tpr)
+mlp_probs = mlp.predict_proba(input_test)
+classes  = np.unique(target_train)
+mlp_auc = []
+mlp_fpr = []
+mlp_tpr = []
+for cla in classes:
+    mlp_auc.append(roc_auc_score(target_test==cla, mlp_probs[:,int(cla) - 1]))
+    fpr, tpr, _ = roc_curve(target_test==cla, mlp_probs[:,int(cla) - 1])
+    mlp_fpr.append(fpr)
+    mlp_tpr.append(tpr)
 
-# print("Printing ROC curves of test set")
-# # plot the roc curve for the model
-# for cla in classes:
-#     # plt.plot(ns_fpr, ns_tpr, linestyle='--', label='No Skill')
-#     plt.plot(mlp_fpr[cla], mlp_tpr[cla], marker='.', label='Class %d (AUC: %.5f)' % (cla, mlp_auc[cla]))
+print("\n~~~ Imprimimos las curvas ROC del conjunto de testeo ~~~\n")
+# plot the roc curve for the model
+for cla in classes:
+    # plt.plot(ns_fpr, ns_tpr, linestyle='--', label='No Skill')
+    plt.plot(mlp_fpr[int(cla) - 1], mlp_tpr[int(cla) - 1], marker = '.', label = 'Class %d (AUC: %.5f)' % (cla, mlp_auc[int (cla) - 1]))
 
-# 9. Conclusiones
-
-print('ඞඞඞCONCLUSIONඞඞඞ')
+plt.plot([0, 1], [0, 1], color = 'navy', linestyle = '--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend()
+plt.show()
